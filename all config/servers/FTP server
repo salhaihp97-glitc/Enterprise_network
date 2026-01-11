@@ -1,0 +1,75 @@
+sudo apt update && sudo apt upgrade -y
+sudo apt install vsftpd -y
+sudo systemctl enable vsftpd
+sudo systemctl start vsftpd
+sudo systemctl status vsftpd
+sudo cp /etc/vsftpd.conf /etc/vsftpd.conf.bak
+sudo nano /etc/vsftpd.conf
+listen=YES
+listen_ipv6=NO
+
+anonymous_enable=NO
+local_enable=YES
+write_enable=YES
+
+chroot_local_user=YES
+allow_writeable_chroot=YES
+
+# وضع سلبي: حدّد نطاق منافذ ثابت
+pasv_enable=YES
+pasv_min_port=30000
+pasv_max_port=31000
+
+# توصيف عنوان الخادم للوضع السلبي (هام خلف NAT):
+# pasv_address=YOUR.PUBLIC.IP.OR.DNS
+
+# تعزيز الأمان
+xferlog_enable=YES
+use_localtime=YES
+ftpd_banner=Welcome to secure FTP server.
+sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout /etc/ssl/private/vsftpd.key \
+  -out /etc/ssl/certs/vsftpd.crt
+sudo chmod 600 /etc/ssl/private/vsftpd.key
+SA
+salh
+Damascus
+entrprise network
+en
+salh.E
+salhaihp97@gmail.com
+salh1234
+ssl_enable=YES
+rsa_cert_file=/etc/ssl/certs/vsftpd.crt
+rsa_private_key_file=/etc/ssl/private/vsftpd.key
+
+# إجبار التشفير
+force_local_logins_ssl=YES
+force_local_data_ssl=YES
+
+# بروتوكولات وخوارزميات آمنة
+ssl_tlsv1=NO
+ssl_tlsv1_1=NO
+ssl_tlsv1_2=YES
+ssl_tlsv1_3=YES
+require_ssl_reuse=NO
+ssl_ciphers=HIGH
+sudo systemctl restart vsftpd
+sudo adduser ftpuser
+sudo mkdir -p /home/ftpuser/ftp
+sudo chown -R ftpuser:ftpuser /home/ftpuser
+# إن أردت الكتابة داخل المجلد chroot:
+sudo chmod 755 /home/ftpuser
+sudo chmod 755 /home/ftpuser/ftp
+sudo usermod -s /usr/sbin/nologin ftpuser
+sudo ufw allow 21/tcp
+sudo ufw allow 30000:31000/tcp
+sudo ufw status
+
+sudo apt install lftp -y
+lftp -u ftpuser sftp://SERVER_IP_OR_DNS
+# لاختبار FTP عبر TLS (FTPS):
+lftp -u ftpuser -e 'set ftp:ssl-force true; set ftp:ssl-allow true; ls; bye' ftp://SERVER_IP_OR_DNS
+
+sudo journalctl -u vsftpd --since "10 minutes ago"
+sudo tail -f /var/log/syslog

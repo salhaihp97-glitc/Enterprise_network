@@ -1,0 +1,203 @@
+enable
+configure terminal
+
+! ------------------- Hostname & basic settings -------------------
+hostname Dist1
+no ip domain-lookup
+vtp mode transparent
+spanning-tree backbonefast
+spanning-tree uplinkfast
+
+! ------------------- Make Dist1 the STP root for all VLANs -------------------
+spanning-tree vlan 10 priority 0
+spanning-tree vlan 20 priority 0
+spanning-tree vlan 30 priority 0
+spanning-tree vlan 40 priority 0
+spanning-tree vlan 50 priority 0
+! ------------------- Layer 3 – Enable IP routing -------------------
+ip routing
+
+! ------------------- VLANs creation -------------------
+vlan 10
+ name IT
+exit
+vlan 20
+ name HR
+exit
+vlan 30
+ name Finance
+exit
+vlan 40
+ name Guest
+exit
+vlan 50
+ name Management
+exit
+
+! ------------------- SVI (VLAN interfaces) – Default Gateway for each VLAN -------------------
+interface vlan 10
+ ip address 192.168.1.1 255.255.255.240
+ no shutdown
+exit
+interface vlan 20
+ ip address 192.168.1.17 255.255.255.240
+ no shutdown
+exit
+interface vlan 30
+ ip address 192.168.1.33 255.255.255.240
+ no shutdown
+exit
+interface vlan 40
+ ip address 192.168.1.49 255.255.255.240
+ no shutdown
+exit
+interface vlan 50
+ ip address 192.168.1.65 255.255.255.240
+ no shutdown
+exit
+
+! ------------------- Links to VyOS1 & VyOS2 (L3 point-to-point) -------------------
+interface FastEthernet0/0
+ description TO VyOS1
+ ip address 10.0.1.1 255.255.255.252
+ no shutdown
+exit
+interface FastEthernet0/1
+ description TO VyOS2
+ ip address 10.0.2.1 255.255.255.252
+ no shutdown
+exit
+
+! ------------------- EtherChannel 4 ports to Dist2 () -------------------
+interface range FastEthernet1/12 - 15
+ description MEMBER OF LACP TO Dist2
+ channel-group 1 mode on
+ no shutdown
+exit
+
+interface Port-channel 1
+ description LACP 4x100Mbps TO Dist2
+switchport
+ switchport mode trunk
+ switchport trunk allowed vlan 1-2,10,20,30,40,1002-1005
+  no shutdown
+exit
+
+! ------------------- Trunks to Access1 – Access4 -------------------
+interface range FastEthernet1/0 - 3
+no shutdown
+ description TRUNK TO Access1-Access4
+switchport trunk encapsulation dot1q 
+ switchport mode trunk
+ switchport trunk allowed vlan 1-2,10,20,30,40,50,1002-1005
+duplex auto
+speed auto
+switchport
+shutdown
+  no shutdown
+exit
+
+! ------------------- OSPF – advertise everything to Core -------------------
+ip routing 
+router ospf 1
+ router-id 1.1.1.1
+ network 10.0.1.0 0.0.0.3 area 0
+ network 10.0.2.0 0.0.0.3 area 0
+ network 192.168.1.0 0.0.0.255 area 0
+ passive-interface vlan 10
+ passive-interface vlan 20
+ passive-interface vlan 30
+ passive-interface vlan 40
+ passive-interface vlan 50
+ default-information originate always
+exit
+
+! ------------------- DHCP Relay → Ubuntu server in IT VLAN (192.168.1.10) -------------------
+ip helper-address 192.168.1.10
+
+interface vlan 10
+ ip helper-address 192.168.1.10
+exit
+interface vlan 20
+ ip helper-address 192.168.1.10
+exit
+interface vlan 30
+ ip helper-address 192.168.1.10
+exit
+interface vlan 40
+ ip helper-address 192.168.1.10
+exit
+interface vlan 50
+ ip helper-address 192.168.1.10
+exit
+configure terminal
+interface vlan 10
+ standby 10 ip 192.168.1.3
+ standby 10 priority 110
+ standby 10 preempt
+ standby 10 track FastEthernet0/0 20
+ standby 10 track FastEthernet0/1 20
+exit
+interface vlan 20
+ standby 20 ip 192.168.1.19
+ standby 20 priority 110
+ standby 20 preempt
+exit
+interface vlan 30
+ standby 30 ip 192.168.1.35
+ standby 30 priority 110
+ standby 30 preempt
+exit
+interface vlan 40
+ standby 40 ip 192.168.1.51
+ standby 40 priority 110
+ standby 40 preempt
+exit
+interface vlan 50
+ standby 50 ip 192.168.1.67
+ standby 50 priority 110
+ standby 50 preempt
+exit
+end
+write memory
+end
+write memory
+========================================================!
+conf t
+logging host 192.168.1.11
+logging trap informational
+snmp-server community librenms1 ro
+
+=========================================================!
+
+conf t
+hostname Dist1
+ip ssh version 2
+ip ssh rsa keypair-name salh1234
+ip domain-name lab.local
+crypto key generate rsa modulus 2048
+aaa new-model
+radius-server host 192.168.1.12 key salh1234
+aaa authentication login default group radius local
+username localadmin secret salh1234   ! حساب محلي للطوارئ
+line vty 0 4
+ login authentication default
+ transport input ssh
+exit
+
+
+
+===============!
+inteface loopback 0
+ip address 10.255.255.1 255.255.255.255
+no shutdown
+================!
+
+show etherchannel 12 summary
+show spanning-tree vlan 10 root
+show ip ospf neighbor
+show ip route ospf
+show vlan brief
+show interfaces trunk
+show ip interface brief
+show port-channel summary

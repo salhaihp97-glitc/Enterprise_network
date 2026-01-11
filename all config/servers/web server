@@ -1,0 +1,48 @@
+sudo apt update && sudo apt upgrade -y
+sudo apt install apache2 -y
+sudo systemctl start apache2
+sudo systemctl enable apache2
+systemctl status apache2
+sudo ufw allow 'Apache'
+sudo ufw status
+sudo ufw allow 80/tcp
+/var/www/html/
+sudo nano /var/www/html/index.html
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>صفحتي البسيطة</title>
+  <style>
+    body { font-family: sans-serif; max-width: 800px; margin: 40px auto; line-height: 1.8; }
+    img { max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <h1>مرحباً بكم في خادمي البسيط</h1>
+  <p>هذه صفحة تجريبية تحتوي على نص وصورة.</p>
+  <img src="image.jpg" alt="صورة تجريبية">
+</body>
+</html>
+
+sudo cp ~/Downloads/myimage.jpg /var/www/html/image.jpg
+sudo chown -R www-data:www-data /var/www/html
+sudo chmod -R 755 /var/www/html
+sudo systemctl reload apache2
+http://localhost
+sudo mkdir -p /var/www/mySite
+sudo nano /etc/apache2/sites-available/mySite.conf
+<VirtualHost *:80>
+  ServerName mysite.local
+  DocumentRoot /var/www/mySite
+  <Directory /var/www/mySite>
+    Options -Indexes +FollowSymLinks
+    AllowOverride None
+    Require all granted
+  </Directory>
+</VirtualHost>
+sudo a2ensite mySite.conf
+sudo systemctl reload apache2
+
+

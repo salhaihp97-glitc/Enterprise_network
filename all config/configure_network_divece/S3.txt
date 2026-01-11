@@ -1,0 +1,101 @@
+enable
+configure terminal
+
+! ------------------- Basic Settings -------------------
+hostname Access3
+vtp mode transparent
+spanning-tree mode rapid-pvst
+spanning-tree extend system-id
+
+! ------------------- DHCP Snooping + IP Source Guard -------------------
+ip dhcp snooping
+ip dhcp snooping vlan 10,20,30,40,50
+ip dhcp snooping verify mac-address
+
+vlan 10,20,30
+
+! ------------------- Uplinks to Dist1 & Dist2 (Trusted Trunks) -------------------
+interface range Ethernet3/1 - 2
+ description TRUNK TO Dist1 & Dist2
+switchport trunk encapsulation dot1q
+ switchport mode trunk
+ switchport trunk allowed vlan 1-2,10,20,30,1002-1005
+switchport
+duplex auto
+ ip dhcp snooping trust
+ spanning-tree guard root
+no spanning-tree guard root
+shutdown
+ no shutdown
+exit
+
+interface Ethernet3/3
+ description SPARE TRUNK
+ shutdown
+exit
+
+! ------------------- VLAN 10 – IT Department (extra ports) -------------------
+interface range Ethernet0/1 - 3
+ description IT DEPARTMENT – VLAN 10 (extra ports)
+ switchport mode access
+ switchport access vlan 10
+ ip verify source
+ ip dhcp snooping limit rate 10
+ switchport port-security maximum 2!
+ switchport port-security mac-address sticky!
+ switchport port-security violation restrict!
+ switchport port-security!
+ spanning-tree portfast
+ spanning-tree bpduguard enable
+no spanning-tree guard
+no ip verify source
+shutdown
+ no shutdown
+exit
+
+! ------------------- VLAN 20 – HR Department (extra ports) -------------------
+interface range Ethernet1/1 - 3
+ description HR DEPARTMENT – VLAN 20 (extra ports)
+ switchport mode access
+ switchport access vlan 20
+ ip verify source
+ ip dhcp snooping limit rate 10
+ switchport port-security maximum 2!
+ switchport port-security mac-address sticky!
+ switchport port-security violation restrict!
+ switchport port-security!
+ spanning-tree portfast
+ spanning-tree bpduguard enable
+no spanning-tree guard
+no ip verify source
+shutdown
+ no shutdown
+exit
+
+! ------------------- VLAN 30 – Finance Department (extra ports) -------------------
+interface range Ethernet2/1 - 3
+ description FINANCE DEPARTMENT – VLAN 30 (extra ports)
+ switchport mode access
+ switchport access vlan 30
+ ip verify source
+ ip dhcp snooping limit rate 10
+ switchport port-security maximum 2!
+ switchport port-security mac-address sticky!
+ switchport port-security violation restrict!
+ switchport port-security!
+ spanning-tree portfast
+ spanning-tree bpduguard enable
+no spanning-tree guard
+no ip verify source
+shutdown
+ no shutdown
+exit
+
+end
+write memory
+show ip dhcp snooping
+show ip verify source
+show port-security interface Ethernet0/1
+show spanning-tree summary
+show interfaces trunk
+show interfaces status

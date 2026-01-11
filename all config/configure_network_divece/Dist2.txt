@@ -1,0 +1,186 @@
+enable
+configure terminal
+
+! ------------------- Hostname & basic settings -------------------
+hostname Dist2
+no ip domain-lookup
+vtp mode transparent
+spanning-tree backbonefast
+spanning-tree uplinkfast
+
+! ------------------- Make Dist2 backup root (higher priority than Access) -------------------
+spanning-tree vlan 10 priority 4096
+spanning-tree vlan 20 priority 4096
+spanning-tree vlan 30 priority 4096
+spanning-tree vlan 40 priority 4096
+spanning-tree vlan 50 priority 4096
+
+! ------------------- Layer 3 – Enable IP routing -------------------
+ip routing
+
+! ------------------- VLANs creation (same as Dist1) -------------------
+vlan 10
+ name IT
+exit
+vlan 20
+ name HR
+exit
+vlan 30
+ name Finance
+exit
+vlan 40
+ name Guest
+exit
+vlan 50
+ name Management
+exit
+
+! ------------------- SVI (VLAN interfaces) – same gateways as Dist1 -------------------
+interface vlan 10
+ ip address 192.168.1.1 255.255.255.240
+ no shutdown
+exit
+interface vlan 20
+ ip address 192.168.1.17 255.255.255.240
+ no shutdown
+exit
+interface vlan 30
+ ip address 192.168.1.33 255.255.255.240
+ no shutdown
+exit
+interface vlan 40
+ ip address 192.168.1.49 255.255.255.240
+ no shutdown
+exit
+interface vlan 50
+ ip address 192.168.1.66 255.255.255.240
+ no shutdown
+exit
+
+! ------------------- Links to VyOS1 & VyOS2 (L3 point-to-point) -------------------
+interface FastEthernet0/0
+ description TO VyOS1
+ ip address 10.0.1.2 255.255.255.252
+ no shutdown
+exit
+interface FastEthernet0/1
+ description TO VyOS2
+ ip address 10.0.2.2 255.255.255.252
+ no shutdown
+exit
+
+
+===========================================!
+interface loopback 0
+ip address 10.255.255.2 255.255.255.255
+no shutdown
+==============================================!
+
+! ------------------- EtherChannel 4 ports to Dist1 () -------------------
+interface range FastEthernet1/12 - 15
+ description MEMBER OF LACP TO Dist1
+ switchport
+ channel-group 1 mode on 
+ no shutdown
+exit
+
+interface Port-channel 1
+ description LACP 4x100Mbps TO Dist1
+switchport
+ switchport mode trunk
+ switchport trunk allowed vlan all
+ no shutdown
+exit
+
+! ------------------- Trunks to Access1 – Access4 -------------------
+interface range FastEthernet1/0 - 3
+no shutdown
+ description TRUNK TO Access1-Access4
+switchport
+switchport trunk encapsulation dot1q 
+ switchport mode trunk
+ switchport trunk allowed vlan 1-2,10,20,30,40,50,1002-1005
+
+duplex auto
+speed auto
+switchport
+shutdown
+ no shutdown
+exit
+
+! ------------------- OSPF – same area, different router-id -------------------
+ip routing
+router ospf 1
+ router-id 10.255.255.4
+network 10.255.255.2 0.0.0.0 area 0
+ network 10.0.1.0 0.0.0.3 area 0
+ network 10.0.2.0 0.0.0.3 area 0
+ network 192.168.1.0 0.0.0.255 area 0
+ passive-interface vlan 10
+ passive-interface vlan 20
+ passive-interface vlan 30
+ passive-interface vlan 40
+ passive-interface vlan 50
+ default-information originate always
+exit
+
+! ------------------- DHCP Relay → Ubuntu server in IT VLAN -------------------
+interface vlan 10
+no ip helper-address 192.168.1.10  
+exit
+interface vlan 20
+ip helper-address 192.168.1.10  
+exit
+interface vlan 30
+ ip helper-address 192.168.1.10
+exit
+interface vlan 40
+ ip helper-address 192.168.1.10
+exit
+interface vlan 50
+ ip helper-address 192.168.1.10
+exit
+
+end
+write memory
+configure terminal
+interface vlan 10
+ standby 10 ip 192.168.1.3
+ standby 10 priority 100
+ standby 10 preempt
+exit
+interface vlan 20
+ standby 20 ip 192.168.1.19
+ standby 20 priority 100
+ standby 20 preempt
+exit
+interface vlan 30
+ standby 30 ip 192.168.1.35
+ standby 30 priority 100
+ standby 30 preempt
+exit
+interface vlan 40
+ standby 40 ip 192.168.1.51
+ standby 40 priority 100
+ standby 40 preempt
+exit
+interface vlan 50
+ standby 50 ip 192.168.1.67
+ standby 50 priority 100
+ standby 50 preempt
+exit
+end
+===============!
+inteface loopback 1
+ip address 20.20.20.20 255.255.255.255
+no shutdown
+================!
+write memory
+show etherchannel 12 summary
+show spanning-tree vlan 10 root
+show ip ospf neighbor
+show ip route ospf
+show vlan brief
+show interfaces trunk
+show port-channel summary
+show ip interface brief
