@@ -1,0 +1,2 @@
+The following services were set up using Windows Server through the interface, and the work is documented in the attached report and mentioned in the presentation: 
+DNS,MAILE,AAA
